@@ -47,12 +47,3 @@ def title():
 
     input("Press ENTER to continue...")
 
-
-# Only used for testing purposes
-if __name__ == "__main__":
-    cls()
-    fig("LAST CALL")
-    typewriter("Loading...", delay=0.1)
-    panel("hi")
-    panel(fig("LAST",ret=True))
-    status(1855,7,0)
