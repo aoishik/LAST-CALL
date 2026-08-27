@@ -20,3 +20,9 @@ def record_call(person):
         game["calls"][person] += 1
     else:
         game["calls"][person] = 1
+
+def disc_evidence(evidence):
+    if evidence not in game["evidence"]:
+        game["evidence"].append(evidence)
+        return True
+    return False
