@@ -18,7 +18,7 @@ def call_person():
     if person not in game.game["calls"]:
         dialog = dialogue1
     else:
-        if game.game["calls"][person] == 2:
+        if game.game["calls"][person] < 2:
             dialog = dialogue2
         else:
             dialog = {person : ["I'm not saying anything else. Figure it out yourself.",],}
@@ -44,6 +44,10 @@ def investigate():
         ui.typewriter(evid,0.05)
     else:
         print("Evidence already discovered!")
+    if os.name == "nt":
+        subprocess.run('set /p ="Press any key to continue..." <nul & pause >nul', shell=True)
+    else:
+        subprocess.run('read -n 1 -s -r -p "Press any key to continue..."', shell=True)
 
 def evidences():
     if len(game.game["evidence"]) == 0:
@@ -53,6 +57,10 @@ def evidences():
     for ev in game.game["evidence"]:
         print(f"{ev}:")
         ui.typewriter(evidence[ev],0.02)
+    if os.name == "nt":
+        subprocess.run('set /p ="Press any key to continue..." <nul & pause >nul', shell=True)
+    else:
+        subprocess.run('read -n 1 -s -r -p "Press any key to continue..."', shell=True)
 
 def game_over():
     ui.cls()
@@ -153,7 +161,7 @@ while game.game["time"] > 0:
     ui.fig("LAST CALL")
     ui.status(game.game["time"], game.game["battery"], len(game.game["evidence"]))
     choices=["Investigate", "Call Someone","Review Evidences", "Make Accusation", "Exit Facility"]
-    if game.game('battery') == 0:
+    if game.game["battery"] == 0:
         ui.typewriter(f"Option to {choices.pop(1)} has been disabled due to battery being exhausted./nYou can't call some now.", delay=0.02)
     choice = questionary.select("What do you want to do?",choices=choices).ask()
     if choice == "Investigate":
