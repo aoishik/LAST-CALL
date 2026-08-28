@@ -2,15 +2,20 @@ name: Build and Release
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - "v*.*.*"
 
 permissions:
   contents: write
 
 jobs:
+
+  # ─────────────────────────────────────────────
+  # Windows
+  # ─────────────────────────────────────────────
+
   build-windows:
-    name: Build Windows
+    name: Build Windows x64
     runs-on: windows-latest
 
     steps:
@@ -21,6 +26,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: "pip"
 
       - name: Install dependencies
         run: |
@@ -28,9 +34,15 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build Windows executable
+      - name: Build executable
+        shell: pwsh
         run: |
-          pyinstaller --noconfirm --onefile --console `
+          pyinstaller `
+            --noconfirm `
+            --clean `
+            --onefile `
+            --console `
+            --name "LAST-CALL-Windows-x64" `
             --icon "LAST_CALL.ico" `
             --hidden-import "pyfiglet" `
             --hidden-import "rich" `
@@ -43,38 +55,76 @@ jobs:
             --collect-all "questionary" `
             "main.py"
 
-      - name: Rename executable
-        run: Rename-Item dist\main.exe LAST-CALL-Windows-x64.exe
+      - name: Verify executable
+        run: |
+          if (!(Test-Path "dist/LAST-CALL-Windows-x64.exe")) {
+            throw "Windows executable was not created"
+          }
 
-      - name: Upload Windows artifact
+      - name: Generate SHA256
+        shell: pwsh
+        run: |
+          (Get-FileHash "dist/LAST-CALL-Windows-x64.exe" -Algorithm SHA256).Hash `
+            | Out-File "dist/LAST-CALL-Windows-x64.exe.sha256" -Encoding ascii
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: LAST-CALL-Windows-x64
-          path: dist/LAST-CALL-Windows-x64.exe
+          path: |
+            dist/LAST-CALL-Windows-x64.exe
+            dist/LAST-CALL-Windows-x64.exe.sha256
 
+
+  # ─────────────────────────────────────────────
+  # Linux
+  # Ubuntu 22.04 userspace
+  # ─────────────────────────────────────────────
 
   build-linux:
-    name: Build Linux
+    name: Build Linux x64
     runs-on: ubuntu-latest
 
+    container:
+      image: ubuntu:22.04
+
+    defaults:
+      run:
+        shell: bash
+
     steps:
+      - name: Install system dependencies
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+
+          apt-get update
+
+          apt-get install -y \
+            python3 \
+            python3-pip \
+            python3-dev \
+            gcc \
+            binutils \
+            git \
+            ca-certificates
+
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
+          python3 -m pip install --upgrade pip
+          pip3 install -r requirements.txt
+          pip3 install pyinstaller
 
-      - name: Build Linux executable
+      - name: Build executable
         run: |
-          pyinstaller --noconfirm --onefile --console \
+          pyinstaller \
+            --noconfirm \
+            --clean \
+            --onefile \
+            --console \
+            --name "LAST-CALL-Linux-x64" \
             --hidden-import "pyfiglet" \
             --hidden-import "rich" \
             --hidden-import "questionary" \
@@ -84,20 +134,34 @@ jobs:
             --collect-all "pyfiglet" \
             --collect-all "rich" \
             --collect-all "questionary" \
-            "main.py"
-
-      - name: Rename executable
-        run: mv dist/main dist/LAST-CALL-Linux-x64
+            main.py
 
       - name: Make executable
-        run: chmod +x dist/LAST-CALL-Linux-x64
+        run: |
+          chmod +x dist/LAST-CALL-Linux-x64
 
-      - name: Upload Linux artifact
+      - name: Verify executable
+        run: |
+          test -f dist/LAST-CALL-Linux-x64
+
+      - name: Generate SHA256
+        run: |
+          sha256sum \
+            dist/LAST-CALL-Linux-x64 \
+            > dist/LAST-CALL-Linux-x64.sha256
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: LAST-CALL-Linux-x64
-          path: dist/LAST-CALL-Linux-x64
+          path: |
+            dist/LAST-CALL-Linux-x64
+            dist/LAST-CALL-Linux-x64.sha256
 
+
+  # ─────────────────────────────────────────────
+  # GitHub Release
+  # ─────────────────────────────────────────────
 
   release:
     name: Create GitHub Release
@@ -120,12 +184,18 @@ jobs:
           name: LAST-CALL-Linux-x64
           path: release
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
+      - name: List release files
+        run: |
+          ls -lh release
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           name: LAST CALL ${{ github.ref_name }}
           generate_release_notes: true
           files: |
             release/LAST-CALL-Windows-x64.exe
+            release/LAST-CALL-Windows-x64.exe.sha256
             release/LAST-CALL-Linux-x64
+            release/LAST-CALL-Linux-x64.sha256
