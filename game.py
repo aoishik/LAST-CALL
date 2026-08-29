@@ -1,5 +1,5 @@
 game = {
-    "time": 1800,
+    "time": 780,
     "battery": 10,
     "evidence": [],
     "calls": {},

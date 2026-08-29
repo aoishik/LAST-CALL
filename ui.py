@@ -39,6 +39,8 @@ def status(time, battery, evidence):
 def title():
     cls()
     fig("LAST CALL")
+    if os.name == "nt":
+        subprocess.run("title LAST CALL", shell=True)
     typewriter("BLACKWOOD RESEARCH FACILITY", delay=0.4)
     typewriter("TERMINAL 04", delay=0.4)
 
